@@ -1,0 +1,130 @@
+<script>
+let quizQuestions = [
+  { question: "Où en êtes-vous de votre projet aujourd'hui ?", options: ["Je n'ai qu'une idée", "Je teste déjà", "Je suis lancé"] },
+  { question: "Quel type de besoin avez-vous ?", options: ["Financement", "Accompagnement", "Outils"] },
+  { question: "Quel est le secteur de votre projet ?", options: ["ESS", "Tech", "Autre"] }
+];
+
+let currentStep = 0;
+let userAnswers = [];
+let offresData = [];
+
+// --- CHARGEMENT DATA ---
+async function loadData() {
+  try {
+    const response = await fetch('data.json');
+    const data = await response.json();
+    offresData = [...data.ponctuels, ...data.stables, ...data.outils];
+    renderOffres(offresData);
+  } catch (err) {
+    console.error("Erreur chargement data.json :", err);
+  }
+}
+
+// --- RENDER QUIZ ---
+function renderQuizStep() {
+  const questionObj = quizQuestions[currentStep];
+  document.getElementById('questionText').textContent = questionObj.question;
+  const quizOptions = document.getElementById('quizOptions');
+  quizOptions.innerHTML = "";
+
+  questionObj.options.forEach((opt, idx) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-option';
+    div.textContent = opt;
+    if (userAnswers[currentStep] === opt) div.classList.add('selected');
+    div.addEventListener('click', () => {
+      userAnswers[currentStep] = opt;
+      document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+      div.classList.add('selected');
+    });
+    quizOptions.appendChild(div);
+  });
+
+  // Boutons
+  document.getElementById('btnPrev').disabled = currentStep === 0;
+  document.getElementById('btnNext').textContent = currentStep === quizQuestions.length - 1 ? 'Terminer ✅' : 'Suivant →';
+
+  // Progress bar
+  const progressPercent = Math.round(((currentStep + 1) / quizQuestions.length) * 100);
+  document.getElementById('progressFill').style.width = progressPercent + '%';
+  document.getElementById('currentStep').textContent = currentStep + 1;
+  document.getElementById('totalSteps').textContent = quizQuestions.length;
+}
+
+// --- NAVIGATION ---
+document.getElementById('btnNext').addEventListener('click', () => {
+  if (!userAnswers[currentStep]) return alert("Veuillez sélectionner une option !");
+  if (currentStep < quizQuestions.length - 1) {
+    currentStep++;
+    renderQuizStep();
+  } else {
+    document.querySelector('.quiz-container').style.display = 'none';
+    document.getElementById('resultsSection').style.display = 'block';
+    filterOffresByQuiz();
+  }
+});
+
+document.getElementById('btnPrev').addEventListener('click', () => {
+  if (currentStep > 0) {
+    currentStep--;
+    renderQuizStep();
+  }
+});
+
+// --- FILTRAGE OFFRES ---
+function filterOffresByQuiz() {
+  let filtered = offresData.filter(offre => {
+    return userAnswers.every(answer => 
+      offre.tags.some(tag => tag.toLowerCase().includes(answer.toLowerCase()))
+    );
+  });
+  renderOffres(filtered);
+}
+
+// --- RENDER OFFRES ---
+function renderOffres(offres) {
+  const container = document.getElementById('offresContainer');
+  if (!offres.length) {
+    container.innerHTML = `<div class="empty-state"><h3>Aucune offre trouvée</h3><p>Essayez de modifier vos critères ou revenir plus tard.</p></div>`;
+    return;
+  }
+  container.innerHTML = "";
+  offres.forEach(o => {
+    const card = document.createElement('div');
+    card.className = 'offre-card';
+    card.innerHTML = `
+      <h3>${o.title}</h3>
+      <div class="offre-meta">
+        ${o.tags.map(t => `<span class="meta-tag">${t.split(':')[1] || t}</span>`).join('')}
+        ${o.region ? `<span class="meta-tag">📍 ${o.region}</span>` : ''}
+      </div>
+      <p class="offre-description">${o.description}</p>
+      <div class="offre-actions">
+        <a href="${o.url}" target="_blank" style="color: var(--primary); text-decoration: none; font-size: 14px;">En savoir plus →</a>
+        <button class="btn-icon">❤️ Ajouter</button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  // Wishlist boutons
+  document.querySelectorAll('.btn-icon').forEach(btn => {
+    btn.addEventListener('click', () => {
+      updateWishlistCount(parseInt(document.getElementById('wishlistCount').textContent) + 1);
+    });
+  });
+}
+
+// --- WISHLIST ---
+function updateWishlistCount(count) {
+  document.getElementById('wishlistCount').textContent = count;
+}
+
+// --- INIT ---
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  renderQuizStep();
+  updateWishlistCount(0);
+});
+</script>
