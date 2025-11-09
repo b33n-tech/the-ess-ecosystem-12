@@ -1,0 +1,41 @@
+{
+  "ponctuels": [
+    {
+      "title": "Appel à projet A",
+      "cible": "Startups ESS, Innovateurs sociaux",
+      "url": "https://exemple.com/a",
+      "tags": ["stade_maturite:Je teste déjà","type_besoin:Financement","nature_projet:ESS"],
+      "region": "Grand Est",
+      "departement": "Bas-Rhin",
+      "ville": "Strasbourg",
+      "description": "Description courte du projet et du dispositif.",
+      "deadline": "2025-12-15"
+    }
+  ],
+  "stables": [
+    {
+      "title": "Programme B",
+      "cible": "Entrepreneurs Tech",
+      "url": "https://exemple.com/b",
+      "tags": ["stade_maturite:Je suis lancé","type_besoin:Accompagnement","nature_projet:Tech"],
+      "region": "Île-de-France",
+      "departement": "Paris",
+      "ville": "Paris",
+      "description": "Programme annuel avec accompagnement sur 6 mois.",
+      "deadline": ""
+    }
+  ],
+  "outils": [
+    {
+      "title": "Ressource C",
+      "cible": "Tous types de projets",
+      "url": "https://exemple.com/c",
+      "tags": ["type_besoin:Outils","stade_maturite:Je n'ai qu'une idée"],
+      "region": "",
+      "departement": "",
+      "ville": "",
+      "description": "Outil gratuit pour gérer son projet et organiser les tâches.",
+      "deadline": ""
+    }
+  ]
+}
