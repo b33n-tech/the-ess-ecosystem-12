@@ -125,21 +125,87 @@ function filterOffresByQuiz() {
     return;
   }
   
+  // Si pas de réponses, afficher toutes les offres
+  if (userAnswers.length === 0) {
+    renderOffres(offresData);
+    return;
+  }
+  
   let filtered = offresData.filter(offre => {
     // Vérifier que l'offre a des tags
     if (!offre.tags || !Array.isArray(offre.tags)) return false;
     
-    // Si aucune réponse, afficher toutes les offres
-    if (userAnswers.length === 0) return true;
+    // Pour chaque réponse utilisateur, vérifier si au moins un tag correspond
+    let matchCount = 0;
+    userAnswers.forEach(answer => {
+      const answerLower = answer.toLowerCase().trim();
+      const hasMatch = offre.tags.some(tag => {
+        const tagLower = tag.toLowerCase();
+        // Extraire la valeur après les ":" si présent
+        const tagValue = tagLower.includes(':') 
+          ? tagLower.split(':')[1].trim() 
+          : tagLower;
+        
+        // Vérifier la correspondance exacte ou partielle
+        return tagValue === answerLower || 
+               tagValue.includes(answerLower) || 
+               answerLower.includes(tagValue);
+      });
+      if (hasMatch) matchCount++;
+    });
     
-    // Vérifier que l'offre correspond à au moins une réponse
-    return userAnswers.some(answer => 
-      offre.tags.some(tag => 
-        tag.toLowerCase().includes(answer.toLowerCase())
-      )
-    );
+    // Retourner les offres qui correspondent à TOUS les critères
+    return matchCount === userAnswers.length;
   });
   
+  // Si aucun résultat avec tous les critères, essayer avec au moins 2 sur 3
+  if (filtered.length === 0 && userAnswers.length >= 2) {
+    filtered = offresData.filter(offre => {
+      if (!offre.tags || !Array.isArray(offre.tags)) return false;
+      let matchCount = 0;
+      userAnswers.forEach(answer => {
+        const answerLower = answer.toLowerCase().trim();
+        const hasMatch = offre.tags.some(tag => {
+          const tagLower = tag.toLowerCase();
+          const tagValue = tagLower.includes(':') 
+            ? tagLower.split(':')[1].trim() 
+            : tagLower;
+          return tagValue === answerLower || 
+                 tagValue.includes(answerLower) || 
+                 answerLower.includes(tagValue);
+        });
+        if (hasMatch) matchCount++;
+      });
+      return matchCount >= 2;
+    });
+  }
+  
+  // Si toujours aucun résultat, essayer avec au moins 1 match
+  if (filtered.length === 0) {
+    filtered = offresData.filter(offre => {
+      if (!offre.tags || !Array.isArray(offre.tags)) return false;
+      return userAnswers.some(answer => {
+        const answerLower = answer.toLowerCase().trim();
+        return offre.tags.some(tag => {
+          const tagLower = tag.toLowerCase();
+          const tagValue = tagLower.includes(':') 
+            ? tagLower.split(':')[1].trim() 
+            : tagLower;
+          return tagValue === answerLower || 
+                 tagValue.includes(answerLower) || 
+                 answerLower.includes(tagValue);
+        });
+      });
+    });
+  }
+  
+  // Si toujours aucun résultat, afficher toutes les offres
+  if (filtered.length === 0) {
+    console.log("Aucune offre ne correspond exactement, affichage de toutes les offres");
+    filtered = offresData;
+  }
+  
+  console.log(`Filtrage: ${filtered.length} offre(s) trouvée(s) sur ${offresData.length}`);
   renderOffres(filtered);
 }
 
