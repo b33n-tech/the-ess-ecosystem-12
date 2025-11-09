@@ -1,4 +1,3 @@
-<script>
 let quizQuestions = [
   { question: "Où en êtes-vous de votre projet aujourd'hui ?", options: ["Je n'ai qu'une idée", "Je teste déjà", "Je suis lancé"] },
   { question: "Quel type de besoin avez-vous ?", options: ["Financement", "Accompagnement", "Outils"] },
@@ -13,26 +12,40 @@ let offresData = [];
 async function loadData() {
   try {
     const response = await fetch('data.json');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
     offresData = [...data.ponctuels, ...data.stables, ...data.outils];
     renderOffres(offresData);
   } catch (err) {
     console.error("Erreur chargement data.json :", err);
+    // Afficher un message d'erreur à l'utilisateur
+    const container = document.getElementById('offresContainer');
+    if (container) {
+      container.innerHTML = `<div class="empty-state"><h3>⚠️ Erreur de chargement</h3><p>Impossible de charger les données. Veuillez réessayer.</p></div>`;
+    }
   }
 }
 
 // --- RENDER QUIZ ---
 function renderQuizStep() {
   const questionObj = quizQuestions[currentStep];
-  document.getElementById('questionText').textContent = questionObj.question;
+  const questionText = document.getElementById('questionText');
   const quizOptions = document.getElementById('quizOptions');
+  
+  if (!questionText || !quizOptions) return;
+  
+  questionText.textContent = questionObj.question;
   quizOptions.innerHTML = "";
 
-  questionObj.options.forEach((opt, idx) => {
+  questionObj.options.forEach((opt) => {
     const div = document.createElement('div');
     div.className = 'quiz-option';
     div.textContent = opt;
-    if (userAnswers[currentStep] === opt) div.classList.add('selected');
+    if (userAnswers[currentStep] === opt) {
+      div.classList.add('selected');
+    }
     div.addEventListener('click', () => {
       userAnswers[currentStep] = opt;
       document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
@@ -42,89 +55,167 @@ function renderQuizStep() {
   });
 
   // Boutons
-  document.getElementById('btnPrev').disabled = currentStep === 0;
-  document.getElementById('btnNext').textContent = currentStep === quizQuestions.length - 1 ? 'Terminer ✅' : 'Suivant →';
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  
+  if (btnPrev) {
+    btnPrev.disabled = currentStep === 0;
+  }
+  if (btnNext) {
+    btnNext.textContent = currentStep === quizQuestions.length - 1 ? 'Terminer ✅' : 'Suivant →';
+  }
 
   // Progress bar
-  const progressPercent = Math.round(((currentStep + 1) / quizQuestions.length) * 100);
-  document.getElementById('progressFill').style.width = progressPercent + '%';
-  document.getElementById('currentStep').textContent = currentStep + 1;
-  document.getElementById('totalSteps').textContent = quizQuestions.length;
+  const progressFill = document.getElementById('progressFill');
+  const currentStepEl = document.getElementById('currentStep');
+  const totalStepsEl = document.getElementById('totalSteps');
+  
+  if (progressFill) {
+    const progressPercent = Math.round(((currentStep + 1) / quizQuestions.length) * 100);
+    progressFill.style.width = progressPercent + '%';
+  }
+  if (currentStepEl) {
+    currentStepEl.textContent = currentStep + 1;
+  }
+  if (totalStepsEl) {
+    totalStepsEl.textContent = quizQuestions.length;
+  }
 }
 
 // --- NAVIGATION ---
-document.getElementById('btnNext').addEventListener('click', () => {
-  if (!userAnswers[currentStep]) return alert("Veuillez sélectionner une option !");
-  if (currentStep < quizQuestions.length - 1) {
-    currentStep++;
-    renderQuizStep();
-  } else {
-    document.querySelector('.quiz-container').style.display = 'none';
-    document.getElementById('resultsSection').style.display = 'block';
-    filterOffresByQuiz();
+function initNavigation() {
+  const btnNext = document.getElementById('btnNext');
+  const btnPrev = document.getElementById('btnPrev');
+  
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      if (!userAnswers[currentStep]) {
+        alert("Veuillez sélectionner une option !");
+        return;
+      }
+      if (currentStep < quizQuestions.length - 1) {
+        currentStep++;
+        renderQuizStep();
+      } else {
+        const quizContainer = document.querySelector('.quiz-container');
+        const resultsSection = document.getElementById('resultsSection');
+        
+        if (quizContainer) quizContainer.style.display = 'none';
+        if (resultsSection) resultsSection.style.display = 'block';
+        
+        filterOffresByQuiz();
+      }
+    });
   }
-});
-
-document.getElementById('btnPrev').addEventListener('click', () => {
-  if (currentStep > 0) {
-    currentStep--;
-    renderQuizStep();
+  
+  if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+      if (currentStep > 0) {
+        currentStep--;
+        renderQuizStep();
+      }
+    });
   }
-});
+}
 
 // --- FILTRAGE OFFRES ---
 function filterOffresByQuiz() {
+  if (!offresData || offresData.length === 0) {
+    renderOffres([]);
+    return;
+  }
+  
   let filtered = offresData.filter(offre => {
-    return userAnswers.every(answer => 
-      offre.tags.some(tag => tag.toLowerCase().includes(answer.toLowerCase()))
+    // Vérifier que l'offre a des tags
+    if (!offre.tags || !Array.isArray(offre.tags)) return false;
+    
+    // Si aucune réponse, afficher toutes les offres
+    if (userAnswers.length === 0) return true;
+    
+    // Vérifier que l'offre correspond à au moins une réponse
+    return userAnswers.some(answer => 
+      offre.tags.some(tag => 
+        tag.toLowerCase().includes(answer.toLowerCase())
+      )
     );
   });
+  
   renderOffres(filtered);
 }
 
 // --- RENDER OFFRES ---
 function renderOffres(offres) {
   const container = document.getElementById('offresContainer');
-  if (!offres.length) {
+  if (!container) return;
+  
+  if (!offres || offres.length === 0) {
     container.innerHTML = `<div class="empty-state"><h3>Aucune offre trouvée</h3><p>Essayez de modifier vos critères ou revenir plus tard.</p></div>`;
     return;
   }
+  
   container.innerHTML = "";
+  
   offres.forEach(o => {
     const card = document.createElement('div');
     card.className = 'offre-card';
+    
+    // Construction des tags
+    const tagsHtml = o.tags && Array.isArray(o.tags) 
+      ? o.tags.map(t => {
+          const tagValue = t.split(':')[1] || t;
+          return `<span class="meta-tag">${tagValue}</span>`;
+        }).join('')
+      : '';
+    
+    const regionHtml = o.region 
+      ? `<span class="meta-tag">📍 ${o.region}</span>` 
+      : '';
+    
     card.innerHTML = `
-      <h3>${o.title}</h3>
+      <h3>${o.title || 'Sans titre'}</h3>
       <div class="offre-meta">
-        ${o.tags.map(t => `<span class="meta-tag">${t.split(':')[1] || t}</span>`).join('')}
-        ${o.region ? `<span class="meta-tag">📍 ${o.region}</span>` : ''}
+        ${tagsHtml}
+        ${regionHtml}
       </div>
-      <p class="offre-description">${o.description}</p>
+      <p class="offre-description">${o.description || ''}</p>
       <div class="offre-actions">
-        <a href="${o.url}" target="_blank" style="color: var(--primary); text-decoration: none; font-size: 14px;">En savoir plus →</a>
-        <button class="btn-icon">❤️ Ajouter</button>
+        <a href="${o.url || '#'}" target="_blank" rel="noopener noreferrer" style="color: var(--primary, #007bff); text-decoration: none; font-size: 14px;">En savoir plus →</a>
+        <button class="btn-icon" data-title="${o.title || ''}">❤️ Ajouter</button>
       </div>
     `;
     container.appendChild(card);
   });
 
   // Wishlist boutons
+  attachWishlistListeners();
+}
+
+// --- WISHLIST ---
+function attachWishlistListeners() {
   document.querySelectorAll('.btn-icon').forEach(btn => {
-    btn.addEventListener('click', () => {
-      updateWishlistCount(parseInt(document.getElementById('wishlistCount').textContent) + 1);
+    btn.addEventListener('click', (e) => {
+      const currentCount = parseInt(document.getElementById('wishlistCount')?.textContent || '0');
+      updateWishlistCount(currentCount + 1);
+      
+      // Feedback visuel
+      btn.textContent = '✅ Ajouté';
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
     });
   });
 }
 
-// --- WISHLIST ---
 function updateWishlistCount(count) {
-  document.getElementById('wishlistCount').textContent = count;
+  const wishlistCountEl = document.getElementById('wishlistCount');
+  if (wishlistCountEl) {
+    wishlistCountEl.textContent = count;
+  }
 }
 
 // --- INIT ---
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
   renderQuizStep();
+  initNavigation();
   updateWishlistCount(0);
 });
-</script>
